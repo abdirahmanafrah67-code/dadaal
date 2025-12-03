@@ -1,0 +1,89 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ──────────────────────────────────────────────
+   Global Reset + Soft Purple Theme
+   ────────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #F6F5FB;             /* Soft light background */
+  color: #3F3F46;                  /* Soft dark text */
+}
+
+/* Prevent Tailwind container from shrinking */
+#root {
+  min-height: 100vh;
+}
+
+/* ──────────────────────────────────────────────
+   Color Variables (Soft Purple Theme)
+   ────────────────────────────────────────────── */
+:root {
+  --primary: #6C2BD9;          /* Soft Purple */
+  --primary-light: #C084FC;    /* Light Purple */
+  --primary-bg: #F4EAFF;       /* Faint purple tint */
+  --border: #E4E4E7;
+  --gray-light: #F4F4F5;
+  --text-dark: #3F3F46;
+  --white: #FFFFFF;
+}
+
+/* ──────────────────────────────────────────────
+   Reusable Components for Project
+   ────────────────────────────────────────────── */
+
+/* Soft purple button */
+.btn-primary {
+  @apply px-4 py-2 font-semibold rounded-lg text-white shadow-sm transition;
+  background: var(--primary);
+}
+
+.btn-primary:hover {
+  background: var(--primary-light);
+}
+
+/* Card UI (soft apple-style) */
+.card {
+  background: white;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+}
+
+/* Inputs */
+.input {
+  @apply w-full px-3 py-2 rounded-lg border outline-none transition;
+  border-color: var(--border);
+  background: white;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(108, 43, 217, 0.15);
+}
+
+/* Section titles */
+.section-title {
+  @apply font-bold text-2xl mb-4;
+  color: var(--text-dark);
+}
+
+/* Fine fade animations */
+.fade-in {
+  animation: fade 0.3s ease-out forwards;
+}
+
+@keyframes fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
