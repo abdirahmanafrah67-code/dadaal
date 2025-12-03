@@ -69,16 +69,8 @@ const ContextToolbar = ({ position, onClose, onColorChange, onDuplicate, onDelet
                         onChange={(e) => onFontSizeChange(parseInt(e.target.value))}
                         className="w-12 text-xs p-1 border border-gray-200 rounded-lg focus:outline-none focus:border-blue-500"
                         title="Font Size"
-                    >
-                        <option value="1">1</option>
-                        <option value="12">12</option>
-                        <option value="24">24</option>
-                        <option value="36">36</option>
-                        <option value="48">48</option>
-                        <option value="60">60</option>
-                        <option value="72">72</option>
-                        <option value="96">96</option>
-                    </input>
+                        min="1"
+                    />
                 </>
             )}
 
