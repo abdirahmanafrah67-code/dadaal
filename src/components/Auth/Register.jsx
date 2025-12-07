@@ -69,7 +69,19 @@ const Register = ({ onSwitchToLogin }) => {
       navigate('/editor');
     } catch (error) {
       console.error('Google sign-in error:', error);
-      setError('Khalad ayaa dhacay markii la galinaayey Google!');
+      let errorMessage = 'Khalad ayaa dhacay markii la galinaayey Google!';
+
+      if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = 'Waa la xiray daaqadda Google-ka.';
+      } else if (error.code === 'auth/unauthorized-domain') {
+        errorMessage = 'Domain-kan (vercel.app) lama oggola. Fadlan ku dar Firebase Console -> Authentication -> Settings -> Authorized Domains.';
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        errorMessage = 'Codsiga waa la joojiyay.';
+      } else if (error.message) {
+        errorMessage = `Khalad: ${error.message}`;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
