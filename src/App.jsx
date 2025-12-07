@@ -6,6 +6,7 @@ import AuthPage from './components/Auth/AuthPage.jsx';
 import CanvasSizeSelection from './pages/CanvasSizeSelection.jsx';
 import Editor from './pages/Editor.jsx';
 import Lessons from './pages/Lessons.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, user, loading }) => {
@@ -42,7 +43,7 @@ function App() {
         {/* Auth Page (Login/Register) */}
         <Route
           path="/"
-          element={user ? <Navigate to="/lessons" replace /> : <AuthPage />}
+          element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />}
         />
 
         {/* Lessons Page - Protected Route */}
@@ -61,6 +62,16 @@ function App() {
           element={
             <ProtectedRoute user={user} loading={loading}>
               <CanvasSizeSelection />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Dashboard - Recent Projects */}
+        <Route
+          path="/dashboard"
+          element={
+            <ProtectedRoute user={user} loading={loading}>
+              <Dashboard />
             </ProtectedRoute>
           }
         />

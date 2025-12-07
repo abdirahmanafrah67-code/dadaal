@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { auth } from '../../firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
+import { FaGoogle, FaFacebook, FaTwitter, FaInstagram, FaGithub } from 'react-icons/fa';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 
 const Login = ({ onSwitchToRegister }) => {
@@ -30,7 +30,7 @@ const Login = ({ onSwitchToRegister }) => {
     } catch (error) {
       console.error('Login error:', error);
       let errorMessage = 'Khalad ayaa dhacay! Hubi email-ka iyo password-ka.';
-      
+
       if (error.code === 'auth/user-not-found') {
         errorMessage = 'Akoon lama helin. Fadlan samee mid cusub.';
       } else if (error.code === 'auth/wrong-password') {
@@ -38,7 +38,7 @@ const Login = ({ onSwitchToRegister }) => {
       } else if (error.code === 'auth/invalid-email') {
         errorMessage = 'Email-ku waa qaldan yahay!';
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -49,7 +49,7 @@ const Login = ({ onSwitchToRegister }) => {
     setError('');
     setLoading(true);
     const provider = new GoogleAuthProvider();
-    
+
     try {
       await signInWithPopup(auth, provider);
       navigate('/editor');
@@ -184,6 +184,9 @@ const Login = ({ onSwitchToRegister }) => {
               </a>
               <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
                 <FaInstagram className="text-gray-600" />
+              </a>
+              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                <FaGithub className="text-gray-600" />
               </a>
             </div>
           </div>

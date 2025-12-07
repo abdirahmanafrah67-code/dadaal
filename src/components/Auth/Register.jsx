@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { auth } from '../../firebase/config';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaTwitter, FaInstagram } from 'react-icons/fa';
+import { FaGoogle, FaFacebook, FaTwitter, FaInstagram, FaGithub } from 'react-icons/fa';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 
 const Register = ({ onSwitchToLogin }) => {
@@ -44,7 +44,7 @@ const Register = ({ onSwitchToLogin }) => {
     } catch (error) {
       console.error('Registration error:', error);
       let errorMessage = 'Khalad ayaa dhacay markii la sameynayay akoonka!';
-      
+
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Email-kan waa la isticmaalay horeba!';
       } else if (error.code === 'auth/invalid-email') {
@@ -52,7 +52,7 @@ const Register = ({ onSwitchToLogin }) => {
       } else if (error.code === 'auth/weak-password') {
         errorMessage = 'Password-ku aad buu u jilicsan yahay!';
       }
-      
+
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -63,7 +63,7 @@ const Register = ({ onSwitchToLogin }) => {
     setError('');
     setLoading(true);
     const provider = new GoogleAuthProvider();
-    
+
     try {
       await signInWithPopup(auth, provider);
       navigate('/editor');
@@ -226,6 +226,9 @@ const Register = ({ onSwitchToLogin }) => {
               </a>
               <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
                 <FaInstagram className="text-gray-600" />
+              </a>
+              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
+                <FaGithub className="text-gray-600" />
               </a>
             </div>
           </div>

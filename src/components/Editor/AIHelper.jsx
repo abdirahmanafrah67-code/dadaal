@@ -1,12 +1,12 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FaRobot, FaPaperPlane, FaTimes, FaMagic, FaHeart, FaBook, FaLightbulb } from "react-icons/fa";
+import { FaRobot, FaPaperPlane, FaTimes, FaMagic, FaHeart, FaBook, FaLightbulb, FaChalkboardTeacher, FaPlus, FaFont, FaSquare, FaCircle } from "react-icons/fa";
 
-const AIHelper = () => {
+const AIHelper = ({ projectType, setProjectType, canvas, selectedItem, addText, addRect, addEllipse }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState([
         {
             role: "assistant",
-            content: "Soo dhowow! Waxaan ahay macalinka Dadaal AI. 📚 Maanta waxaan ku baran doonnaa naqshadeynta (design). Sidee baan kuu caawin karaa?",
+            content: "👋 Hello! I'm your AI Design Agent. I don't just advise—I can **take actions** for you!\n\n🎯 What are you designing today?",
         },
     ]);
     const [input, setInput] = useState("");
@@ -22,16 +22,39 @@ const AIHelper = () => {
         scrollToBottom();
     }, [messages, isOpen]);
 
+    // Ask about project type when opened for the first time
+    useEffect(() => {
+        if (isOpen && !projectType && messages.length === 1) {
+            setTimeout(() => {
+                setMessages(prev => [...prev, {
+                    role: "assistant",
+                    content: "Choose your project type below, and I'll help you create it! 👇",
+                    actions: [
+                        { label: '🎨 Create Logo', onClick: () => selectProjectType('logo') },
+                        { label: '📄 Create Poster', onClick: () => selectProjectType('poster') },
+                        { label: '📱 Social Media', onClick: () => selectProjectType('social') },
+                        { label: '🎪 Create Banner', onClick: () => selectProjectType('banner') }
+                    ]
+                }]);
+            }, 500);
+        }
+    }, [isOpen, projectType, messages.length]);
+
     // Initialize Gemini Nano
     useEffect(() => {
         const initAI = async () => {
             if ('ai' in window && 'languageModel' in window.ai) {
                 try {
                     const session = await window.ai.languageModel.create({
-                        systemPrompt: "You are Dadaal AI, a design teacher assistant. You teach graphic design concepts in Somali language. Give assignments, explain design principles (color theory, typography, layout), and help students learn. Be encouraging and educational. Use emojis occasionally."
+                        systemPrompt: `You are an AI design agent that can take actions, not just give advice. You can:
+- Add shapes, text, and elements to the canvas
+- Modify sizes, colors, and positions
+- Create layouts automatically
+- Apply design principles programmatically
+Provide specific, actionable guidance and offer to execute changes directly.`
                     });
                     setAiSession(session);
-                    console.log('✅ Gemini Nano initialized');
+                    console.log('✅ Gemini Nano AI Agent initialized');
                 } catch (err) {
                     console.log('⚠️ Gemini Nano not available, using OpenRouter');
                 }
@@ -54,7 +77,15 @@ const AIHelper = () => {
             setTimeout(() => {
                 setMessages((prev) => [
                     ...prev,
-                    { role: "assistant", content: "Fadlan geli furahaaga API-ga (API Key) faylka .env si aan kuugu jawaabo." },
+                    {
+                        role: "assistant",
+                        content: "⚠️ API key not configured. But I can still help with quick actions!",
+                        actions: [
+                            { label: '➕ Add Title Text', onClick: () => executeAction('addText') },
+                            { label: '🟦 Add Rectangle', onClick: () => executeAction('addRect') },
+                            { label: '⭕ Add Circle', onClick: () => executeAction('addCircle') }
+                        ]
+                    },
                 ]);
                 setIsTyping(false);
             }, 1000);
@@ -63,11 +94,15 @@ const AIHelper = () => {
 
         try {
             let aiContent = "";
+            let suggestedActions = [];
 
             // Try Gemini Nano first
             if (aiSession) {
                 try {
-                    aiContent = await aiSession.prompt(input);
+                    const contextPrompt = projectType
+                        ? `User is creating a ${projectType}. ${input}`
+                        : input;
+                    aiContent = await aiSession.prompt(contextPrompt);
                     console.log('✅ Used Gemini Nano');
                 } catch (nanoErr) {
                     console.log('⚠️ Nano failed, falling back to OpenRouter');
@@ -77,6 +112,21 @@ const AIHelper = () => {
 
             // Fallback to OpenRouter
             if (!aiContent) {
+                const systemPrompt = `You are an AI design agent, not just a chatbot. You can execute actions.
+${projectType ? `The user is working on a ${projectType}.` : ''}
+
+When users ask for help:
+1. Provide brief, actionable advice
+2. Suggest specific actions you can take for them
+3. Keep responses concise (2-3 sentences max)
+
+Example responses:
+User: "I need a title"
+You: "I'll add a professional title text for you! For ${projectType || 'your design'}, I recommend 48px bold text. Would you like me to create it?"
+
+User: "Add some shapes"
+You: "I can add rectangles, circles, or custom shapes. What suits your ${projectType || 'design'} best?"`;
+
                 const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
                     method: "POST",
                     headers: {
@@ -90,7 +140,7 @@ const AIHelper = () => {
                         "messages": [
                             {
                                 "role": "system",
-                                "content": "You are Dadaal AI, a design teacher for students learning graphic design. You MUST answer in Somali language only. Teach design concepts (color theory, typography, composition, spacing). Give creative assignments. Explain poster sizes (A4: 210x297mm, Instagram: 1080x1080px, etc). Be encouraging and educational. Use emojis occasionally."
+                                "content": systemPrompt
                             },
                             ...messages.map(m => ({ role: m.role, content: m.content })),
                             { "role": "user", "content": input }
@@ -103,35 +153,159 @@ const AIHelper = () => {
                 }
 
                 const data = await response.json();
-                aiContent = data.choices[0]?.message?.content || "Waan ka xumahay, cilad ayaa dhacday.";
+                aiContent = data.choices[0]?.message?.content || "I apologize, but I encountered an error. Let me help with quick actions instead.";
+            }
+
+            // Parse user intent and suggest actions
+            const lowerInput = input.toLowerCase();
+            const actions = [];
+
+            if (lowerInput.includes('text') || lowerInput.includes('title') || lowerInput.includes('heading')) {
+                actions.push({ label: '➕ Add Title Text', onClick: () => executeAction('addText') });
+            }
+            if (lowerInput.includes('shape') || lowerInput.includes('rectangle') || lowerInput.includes('box')) {
+                actions.push({ label: '🟦 Add Rectangle', onClick: () => executeAction('addRect') });
+            }
+            if (lowerInput.includes('circle') || lowerInput.includes('round')) {
+                actions.push({ label: '⭕ Add Circle', onClick: () => executeAction('addCircle') });
+            }
+            if (lowerInput.includes('optimize') || lowerInput.includes('fix')) {
+                actions.push({ label: '✨ Optimize Selected', onClick: () => executeAction('optimize') });
             }
 
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: aiContent },
+                {
+                    role: "assistant",
+                    content: aiContent,
+                    actions: actions.length > 0 ? actions : undefined
+                },
             ]);
         } catch (err) {
             console.error("AI Error:", err);
             setMessages((prev) => [
                 ...prev,
-                { role: "assistant", content: "Waan ka xumahay, cilad ayaa ku timid xiriirka." },
+                {
+                    role: "assistant",
+                    content: "⚠️ Connection error. But I can still help with quick actions!",
+                    actions: [
+                        { label: '➕ Add Text', onClick: () => executeAction('addText') },
+                        { label: '🟦 Add Shape', onClick: () => executeAction('addRect') }
+                    ]
+                },
             ]);
         } finally {
             setIsTyping(false);
         }
     };
 
-    // Quick assignment suggestions
-    const giveAssignment = (type) => {
-        const assignments = {
-            poster: "📝 **Hawsha Maanta:**\n\nSamee poster ku saabsan 'Biyo Badbaadinta'\n\n**Shuruudaha:**\n• Cabbirka: 800x1000 pixels\n• Midabyo: Buluug iyo caddaan\n• Qoraal: Cinwaan weyn + 3 qodob\n• Sawir: Mid ama laba\n\n**Waqtiga:** 30 daqiiqo\n\nBillow hadda! 🎨",
-            logo: "📝 **Hawsha Maanta:**\n\nSamee logo shirkad cusub\n\n**Shuruudaha:**\n• Cabbirka: 500x500 pixels\n• Midabyo: 2-3 kaliya\n• Fudud oo la xasuusan karo\n• Magaca shirkadda: 'Dadaal Tech'\n\n**Waqtiga:** 20 daqiiqo\n\nBillow hadda! 💡",
-            social: "📝 **Hawsha Maanta:**\n\nSamee social media post\n\n**Shuruudaha:**\n• Cabbirka: 1080x1080 pixels (Instagram)\n• Mawduuca: Cunto caafimaad leh\n• Qoraal: Gaaban oo soo jiidanaya\n• Midabyo: Dhalaalaya\n\n**Waqtiga:** 25 daqiiqo\n\nBillow hadda! 📱"
+    // Execute agent actions
+    const executeAction = (action) => {
+        if (!canvas) {
+            alert('Canvas not ready!');
+            return;
+        }
+
+        switch (action) {
+            case 'addText':
+                if (addText) {
+                    addText();
+                    setMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "✅ Title text added! Double-click to edit the text."
+                    }]);
+                }
+                break;
+
+            case 'addRect':
+                if (addRect) {
+                    addRect();
+                    setMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "✅ Rectangle added! Resize and style it from the right panel."
+                    }]);
+                }
+                break;
+
+            case 'addCircle':
+                if (addEllipse) {
+                    addEllipse();
+                    setMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "✅ Circle added! Customize its color and size."
+                    }]);
+                }
+                break;
+
+            case 'optimize':
+                if (selectedItem) {
+                    // Center the selected item
+                    selectedItem.center();
+                    canvas.requestRenderAll();
+                    setMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "✅ Element centered on canvas!"
+                    }]);
+                } else {
+                    setMessages(prev => [...prev, {
+                        role: "assistant",
+                        content: "ℹ️ Please select an element first to optimize it."
+                    }]);
+                }
+                break;
+
+            default:
+                break;
+        }
+    };
+
+    // Project type selection
+    const selectProjectType = (type) => {
+        setProjectType(type);
+        const recommendations = {
+            logo: {
+                content: "🎨 **Logo Mode Activated!**\n\n✅ **Setup:**\n• Canvas: 500x500px\n• Colors: 2-3 maximum\n• Style: Simple & memorable\n\n💡 **Quick Start:**",
+                actions: [
+                    { label: '➕ Add Logo Text', onClick: () => executeAction('addText') },
+                    { label: '🟦 Add Shape', onClick: () => executeAction('addRect') },
+                    { label: '⭕ Add Circle', onClick: () => executeAction('addCircle') }
+                ]
+            },
+            poster: {
+                content: "📄 **Poster Mode Activated!**\n\n✅ **Setup:**\n• Size: A4 (2480x3508px)\n• Title: Bold & large\n• Layout: Clear hierarchy\n\n💡 **Quick Start:**",
+                actions: [
+                    { label: '➕ Add Main Title', onClick: () => executeAction('addText') },
+                    { label: '🟦 Add Background', onClick: () => executeAction('addRect') }
+                ]
+            },
+            social: {
+                content: "📱 **Social Media Mode Activated!**\n\n✅ **Setup:**\n• Instagram: 1080x1080px\n• Colors: Vibrant\n• Text: Large & readable\n\n💡 **Quick Start:**",
+                actions: [
+                    { label: '➕ Add Caption Text', onClick: () => executeAction('addText') },
+                    { label: '🎨 Add Accent Shape', onClick: () => executeAction('addCircle') }
+                ]
+            },
+            banner: {
+                content: "🎪 **Banner Mode Activated!**\n\n✅ **Setup:**\n• Web: 1200x400px\n• Layout: Horizontal focus\n• CTA: Bold & centered\n\n💡 **Quick Start:**",
+                actions: [
+                    { label: '➕ Add Banner Text', onClick: () => executeAction('addText') },
+                    { label: '🟦 Add CTA Button', onClick: () => executeAction('addRect') }
+                ]
+            }
+        };
+
+        const rec = recommendations[type] || {
+            content: `Great! Let me help you create an amazing ${type}.`,
+            actions: [
+                { label: '➕ Add Text', onClick: () => executeAction('addText') },
+                { label: '🟦 Add Shape', onClick: () => executeAction('addRect') }
+            ]
         };
 
         setMessages((prev) => [
             ...prev,
-            { role: "assistant", content: assignments[type] }
+            { role: "user", content: `I want to create a ${type}` },
+            { role: "assistant", content: rec.content, actions: rec.actions }
         ]);
     };
 
@@ -140,61 +314,79 @@ const AIHelper = () => {
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="w-16 h-16 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-full shadow-lg shadow-purple-300 flex items-center justify-center text-white hover:scale-110 transition-transform group border-4 border-white"
+                    className="relative w-16 h-16 bg-gradient-to-br from-[#013232] to-[#025555] rounded-full shadow-2xl shadow-[#013232]/50 flex items-center justify-center text-white hover:scale-110 transition-all duration-300 group border-4 border-white animate-pulse hover:animate-none"
                 >
-                    <FaBook size={28} className="group-hover:animate-bounce" />
-                    <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-400 rounded-full border-2 border-white animate-pulse"></div>
+                    <FaRobot size={28} className="group-hover:rotate-12 transition-transform duration-300" />
+                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center">
+                        <FaMagic size={12} className="text-[#013232]" />
+                    </div>
                 </button>
             )}
 
             {isOpen && (
-                <div className="w-[550px] h-[750px] bg-white rounded-3xl shadow-2xl shadow-purple-900/20 border-2 border-purple-100 overflow-hidden flex flex-col animate-in slide-in-from-bottom-10 duration-300">
+                <div className="w-[550px] h-[750px] bg-gradient-to-br from-white to-teal-50 rounded-3xl shadow-2xl shadow-[#013232]/30 border-2 border-teal-200 overflow-hidden flex flex-col animate-in slide-in-from-bottom-10 duration-300">
                     {/* Header */}
-                    <div className="bg-gradient-to-r from-purple-500 to-indigo-600 p-4 flex justify-between items-center text-white">
+                    <div className="bg-gradient-to-r from-[#013232] to-[#025555] p-4 flex justify-between items-center text-white">
                         <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-white/30">
-                                <FaBook size={18} />
+                            <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm border-2 border-white/40 shadow-lg">
+                                <FaRobot size={22} />
                             </div>
                             <div>
-                                <h3 className="font-bold text-sm">Macalinka Dadaal AI</h3>
-                                <div className="flex items-center gap-1 text-[10px] text-purple-100">
-                                    <FaHeart size={8} className="text-purple-200" />
-                                    Baro Naqshadeynta
+                                <h3 className="font-bold text-base">AI Design Agent</h3>
+                                <div className="flex items-center gap-1.5 text-[11px] text-yellow-100">
+                                    <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                    Can Take Actions • Not Just Chat
                                 </div>
                             </div>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="text-white/80 hover:text-white hover:bg-red-500/20 p-2 rounded-full transition-colors w-8 h-8 flex items-center justify-center"
-                            title="Xir"
+                            className="text-white/80 hover:text-white hover:bg-red-500/30 p-2 rounded-full transition-all duration-200 w-9 h-9 flex items-center justify-center hover:rotate-90"
+                            title="Close"
                         >
-                            <FaTimes size={16} />
+                            <FaTimes size={18} />
                         </button>
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 bg-purple-50/30 space-y-3 scrollbar-thin scrollbar-thumb-purple-200">
+                    <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-teal-50/50 to-white space-y-3 scrollbar-thin scrollbar-thumb-teal-300 scrollbar-track-teal-50">
                         {messages.map((msg, idx) => (
-                            <div
-                                key={idx}
-                                className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                            >
+                            <div key={idx}>
                                 <div
-                                    className={`max-w-[85%] p-3.5 rounded-2xl text-sm shadow-sm whitespace-pre-line ${msg.role === "user"
-                                        ? "bg-purple-500 text-white rounded-br-none"
-                                        : "bg-white text-slate-600 border border-purple-100 rounded-bl-none"
-                                        }`}
+                                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} mb-2`}
                                 >
-                                    {msg.content}
+                                    <div
+                                        className={`max-w-[85%] p-3.5 rounded-2xl text-sm shadow-md whitespace-pre-line ${msg.role === "user"
+                                            ? "bg-gradient-to-br from-[#013232] to-[#025555] text-white rounded-br-none"
+                                            : "bg-white text-slate-700 border border-teal-200 rounded-bl-none"
+                                            }`}
+                                    >
+                                        {msg.content}
+                                    </div>
                                 </div>
+
+                                {/* Action Buttons */}
+                                {msg.actions && msg.actions.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 ml-2 mb-2">
+                                        {msg.actions.map((action, actionIdx) => (
+                                            <button
+                                                key={actionIdx}
+                                                onClick={action.onClick}
+                                                className="px-4 py-2 bg-gradient-to-r from-yellow-400 to-yellow-500 hover:from-yellow-500 hover:to-yellow-600 text-[#013232] text-xs font-bold rounded-full shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+                                            >
+                                                {action.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         ))}
                         {isTyping && (
                             <div className="flex justify-start">
-                                <div className="bg-white border border-purple-100 p-4 rounded-2xl rounded-bl-none shadow-sm flex gap-1.5">
-                                    <span className="w-2 h-2 bg-purple-300 rounded-full animate-bounce"></span>
-                                    <span className="w-2 h-2 bg-purple-300 rounded-full animate-bounce delay-75"></span>
-                                    <span className="w-2 h-2 bg-purple-300 rounded-full animate-bounce delay-150"></span>
+                                <div className="bg-white border border-teal-200 p-4 rounded-2xl rounded-bl-none shadow-md flex gap-1.5">
+                                    <span className="w-2.5 h-2.5 bg-[#013232] rounded-full animate-bounce"></span>
+                                    <span className="w-2.5 h-2.5 bg-[#013232] rounded-full animate-bounce delay-100"></span>
+                                    <span className="w-2.5 h-2.5 bg-[#013232] rounded-full animate-bounce delay-200"></span>
                                 </div>
                             </div>
                         )}
@@ -202,27 +394,43 @@ const AIHelper = () => {
                     </div>
 
                     {/* Input */}
-                    <div className="p-3 bg-white border-t border-purple-100">
-                        <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-none">
-                            <AssignmentChip text="Hawsha Poster" onClick={() => giveAssignment('poster')} />
-                            <AssignmentChip text="Hawsha Logo" onClick={() => giveAssignment('logo')} />
-                            <AssignmentChip text="Social Media" onClick={() => giveAssignment('social')} />
-                        </div>
+                    <div className="p-3 bg-white border-t-2 border-teal-200">
+                        {projectType && (
+                            <div className="mb-2 px-3 py-2 bg-gradient-to-r from-teal-100 to-yellow-100 rounded-full text-xs font-bold text-[#013232] flex items-center justify-between">
+                                <span>🎯 Project: {projectType.charAt(0).toUpperCase() + projectType.slice(1)}</span>
+                                <button
+                                    onClick={() => setProjectType(null)}
+                                    className="text-[#013232] hover:text-teal-700 ml-2"
+                                >
+                                    <FaTimes size={12} />
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Quick Actions */}
+                        {!projectType && (
+                            <div className="flex gap-2 mb-2 overflow-x-auto pb-1 scrollbar-none">
+                                <ActionChip icon="➕" text="Add Text" onClick={() => executeAction('addText')} />
+                                <ActionChip icon="🟦" text="Add Shape" onClick={() => executeAction('addRect')} />
+                                <ActionChip icon="⭕" text="Add Circle" onClick={() => executeAction('addCircle')} />
+                            </div>
+                        )}
+
                         <div className="relative flex items-center">
                             <input
                                 type="text"
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                                placeholder="Wax i weydii macalinka..."
-                                className="w-full bg-purple-50 text-slate-700 rounded-full pl-4 pr-12 py-2.5 text-sm font-medium placeholder:text-purple-300 focus:outline-none focus:ring-2 focus:ring-purple-200 transition-all"
+                                placeholder="Tell me what to create..."
+                                className="w-full bg-gradient-to-r from-teal-50 to-yellow-50 text-slate-800 rounded-full pl-4 pr-12 py-3 text-sm font-medium placeholder:text-teal-400 focus:outline-none focus:ring-2 focus:ring-[#013232] transition-all border border-teal-200"
                             />
                             <button
                                 onClick={handleSend}
                                 disabled={!input.trim() || isTyping}
-                                className="absolute right-1.5 p-2 bg-purple-500 text-white rounded-full hover:bg-purple-600 disabled:opacity-50 disabled:hover:bg-purple-500 transition-colors shadow-sm transform active:scale-95"
+                                className="absolute right-1.5 p-2.5 bg-gradient-to-r from-yellow-400 to-yellow-500 text-[#013232] rounded-full hover:from-yellow-500 hover:to-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg transform active:scale-95"
                             >
-                                <FaPaperPlane size={12} />
+                                <FaPaperPlane size={14} />
                             </button>
                         </div>
                     </div>
@@ -232,12 +440,13 @@ const AIHelper = () => {
     );
 };
 
-const AssignmentChip = ({ text, onClick }) => (
+const ActionChip = ({ icon, text, onClick }) => (
     <button
         onClick={onClick}
-        className="whitespace-nowrap px-3 py-1 bg-purple-50 text-purple-500 text-[10px] font-bold rounded-full border border-purple-100 hover:bg-purple-100 transition-colors flex items-center gap-1"
+        className="whitespace-nowrap px-3 py-1.5 bg-gradient-to-r from-purple-100 to-indigo-100 hover:from-purple-200 hover:to-indigo-200 text-purple-700 text-[11px] font-bold rounded-full border-2 border-purple-300 transition-all flex items-center gap-1.5 shadow-sm hover:shadow-md transform hover:scale-105"
     >
-        <FaLightbulb size={8} /> {text}
+        <span>{icon}</span>
+        {text}
     </button>
 );
 

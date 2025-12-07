@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as fabric from 'fabric';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import Toolbar from '../components/Editor/Toolbar';
 import PropertiesPanel from '../components/Editor/PropertiesPanel';
 import AIHelper from '../components/Editor/AIHelper';
@@ -8,9 +9,16 @@ import UpgradeModal from '../components/Editor/UpgradeModal';
 import DesignAssistant from '../components/Editor/DesignAssistant';
 import ImageIconSearch from '../components/Editor/ImageIconSearch';
 import { removeBackground } from '@imgly/background-removal';
-import { FaLayerGroup, FaSearch } from 'react-icons/fa';
+import { FaLayerGroup, FaSearch, FaArrowLeft, FaSignOutAlt } from 'react-icons/fa';
+import { supabase } from '../supabase/client';
+import { auth } from '../firebase/config';
+import ConfirmDialog from '../components/Shared/ConfirmDialog';
 
 const Editor = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const designId = searchParams.get('id');
+
   const canvasRef = useRef(null);
   const clipboard = useRef(null);
   const [canvas, setCanvas] = useState(null);
@@ -21,6 +29,8 @@ const Editor = () => {
   const [showNewFileModal, setShowNewFileModal] = useState(false);
   const [designName, setDesignName] = useState('Untitled Design');
   const [newFileDimensions, setNewFileDimensions] = useState({ width: 1080, height: 1080 });
+  const [isSaving, setIsSaving] = useState(false);
+  const [projectType, setProjectType] = useState(null); // 'logo', 'poster', 'social', etc.
 
   const [processingIds, setProcessingIds] = useState(new Set());
 
@@ -47,6 +57,29 @@ const Editor = () => {
   const [contextToolbarPos, setContextToolbarPos] = useState(null);
   const [showContextToolbar, setShowContextToolbar] = useState(false);
   const [showAssetsSearch, setShowAssetsSearch] = useState(false);
+  const [showNewFileConfirm, setShowNewFileConfirm] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((u) => {
+      setCurrentUser(u);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      if (canvasRef.current && canvas.getObjects().length > 0) {
+        // Optional: Save before logout? For now just logout
+      }
+      await auth.signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   // Properties State
   const [posX, setPosX] = useState(0);
@@ -336,6 +369,44 @@ const Editor = () => {
     };
   }, []);
 
+  // Load Design from Supabase
+  useEffect(() => {
+    const loadDesign = async () => {
+      if (!canvas || !auth.currentUser) return;
+
+      // Only load if ID is present in URL
+      if (!designId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('designs')
+          .select('content, name')
+          .eq('id', designId)
+          .single();
+
+        if (error) {
+          console.error('Error loading design:', error);
+          return;
+        }
+
+        if (data) {
+          console.log('Loading saved design...');
+          if (data.name) setDesignName(data.name);
+          canvas.loadFromJSON(data.content, () => {
+            canvas.requestRenderAll();
+            console.log('Design loaded successfully');
+            // Reset viewport
+            canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+          });
+        }
+      } catch (e) {
+        console.error('Unexpected error loading design:', e);
+      }
+    };
+
+    loadDesign();
+  }, [canvas, designId]);
+
   const handleSelection = (e) => {
     const selected = e.selected ? e.selected[0] : e.target;
     if (!selected) {
@@ -393,11 +464,30 @@ const Editor = () => {
   };
 
   // Tool Handlers
+  // Tool Handlers
+  const getSafePosition = (width = 100, height = 100) => {
+    if (!canvas) return { left: 100, top: 100 };
+
+    // Get center of viewport
+    const vpt = canvas.viewportTransform;
+    const centerX = (-vpt[4] + canvas.width / 2) / vpt[0];
+    const centerY = (-vpt[5] + canvas.height / 2) / vpt[3];
+
+    // Add some random offset so they don't stack perfectly
+    const offset = Math.random() * 40 - 20;
+
+    return {
+      left: centerX + offset - width / 2,
+      top: centerY + offset - height / 2
+    };
+  };
+
   const addRect = () => {
     if (!canvas) return;
+    const pos = getSafePosition(100, 100);
     const rect = new fabric.Rect({
-      left: 100,
-      top: 100,
+      left: pos.left,
+      top: pos.top,
       fill: '#3b82f6',
       width: 100,
       height: 100,
@@ -407,13 +497,15 @@ const Editor = () => {
     canvas.add(rect);
     rect.bringToFront();
     canvas.setActiveObject(rect);
+    canvas.requestRenderAll();
   };
 
   const addRoundedRect = () => {
     if (!canvas) return;
+    const pos = getSafePosition(120, 120);
     const rect = new fabric.Rect({
-      left: 150,
-      top: 150,
+      left: pos.left,
+      top: pos.top,
       fill: '#10b981',
       width: 120,
       height: 120,
@@ -423,26 +515,30 @@ const Editor = () => {
     canvas.add(rect);
     rect.bringToFront();
     canvas.setActiveObject(rect);
+    canvas.requestRenderAll();
   };
 
   const addEllipse = () => {
     if (!canvas) return;
+    const pos = getSafePosition(100, 100);
     const circle = new fabric.Circle({
-      left: 150,
-      top: 150,
+      left: pos.left,
+      top: pos.top,
       fill: '#ef4444',
       radius: 50,
     });
     canvas.add(circle);
     circle.bringToFront();
     canvas.setActiveObject(circle);
+    canvas.requestRenderAll();
   };
 
   const addText = () => {
     if (!canvas) return;
+    const pos = getSafePosition(200, 50);
     const text = new fabric.IText('Double click to edit', {
-      left: 200,
-      top: 200,
+      left: pos.left,
+      top: pos.top,
       fontFamily: 'Inter, sans-serif',
       fontSize: 24,
       fill: '#1e293b'
@@ -638,7 +734,87 @@ const Editor = () => {
         next.delete(objectId);
         return next;
       });
+
       alert("Failed to remove background. Please try again.");
+    }
+  };
+
+  const saveDesign = async () => {
+    if (!canvas || !auth.currentUser) {
+      alert("Please login to save your design.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const json = canvas.toJSON();
+      const userId = auth.currentUser.uid;
+      // Generate a small preview data URL
+      const previewUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 0.5,
+        multiplier: 0.2 // Small preview
+      });
+
+      const designData = {
+        content: json,
+        name: designName,
+        preview_url: previewUrl,
+      };
+
+      if (designId) {
+        // Update existing design
+        const { error } = await supabase.from('designs').update({
+          ...designData,
+          updated_at: new Date()
+        }).eq('id', designId);
+
+        if (error) throw error;
+      } else {
+        // Insert new design
+        const { data, error } = await supabase.from('designs').insert({
+          ...designData,
+          user_id: userId,
+        }).select().single();
+
+        if (error) throw error;
+
+        // Update URL with new ID without refreshing
+        if (data && data.id) {
+          setSearchParams({ id: data.id });
+        }
+      }
+    } catch (error) {
+      console.error("Error saving design (attempt 1):", error);
+
+      // Retry without preview_url (Backward Compatibility)
+      try {
+        console.log("Retrying save without preview_url...");
+        const json = canvas.toJSON();
+        const userId = auth.currentUser.uid;
+
+        if (designId) {
+          const { error } = await supabase.from('designs').update({
+            content: json,
+            name: designName,
+            updated_at: new Date()
+          }).eq('id', designId);
+          if (error) throw error;
+        } else {
+          const { data, error } = await supabase.from('designs').insert({
+            user_id: userId,
+            content: json,
+            name: designName
+          }).select().single();
+          if (error) throw error;
+          if (data && data.id) setSearchParams({ id: data.id });
+        }
+      } catch (retryError) {
+        console.error("Error saving design (final):", retryError);
+        alert(`Failed to save design: ${retryError.message}`);
+      }
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -650,22 +826,20 @@ const Editor = () => {
   const handleCreateNewFile = () => {
     if (!canvas) return;
 
-    // Confirm if user has unsaved changes (optional, but good practice)
     if (canvas.getObjects().length > 0) {
-      if (!window.confirm("Are you sure you want to create a new file? Unsaved changes will be lost.")) {
-        return;
-      }
+      setShowNewFileConfirm(true);
+      return;
     }
+    executeCreateNewFile();
+  };
 
+  const executeCreateNewFile = () => {
     const w = parseInt(newFileDimensions.width) || 1080;
     const h = parseInt(newFileDimensions.height) || 1080;
 
     canvas.clear();
     canvas.setBackgroundColor('#ffffff', canvas.renderAll.bind(canvas));
 
-    // Resize canvas (and update container if needed, but for now just logical size)
-    // Note: In a real app we'd resize the container too, but here we just clear.
-    // We can set the zoom to fit the new dimensions.
     canvas.setDimensions({
       width: w,
       height: h
@@ -673,8 +847,9 @@ const Editor = () => {
 
     setDesignName('Untitled Design');
     setShowNewFileModal(false);
+    setShowNewFileConfirm(false);
+    setSearchParams({}); // Clear ID
 
-    // Reset viewport
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
     canvas.requestRenderAll();
   };
@@ -977,14 +1152,26 @@ const Editor = () => {
         onLoadTemplate={loadWatchTemplate}
       />
 
+
+
       <div className="flex-1 flex flex-col relative overflow-hidden">
         {/* Top Bar */}
         <div className="h-20 flex items-center justify-between px-8">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shadow-md"
+                title="Go to Dashboard"
+              >
                 <span className="text-xs">D</span>
-              </div>
+              </button>
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="bg-white text-gray-700 px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 font-medium text-sm flex items-center gap-2"
+              >
+                <FaArrowLeft /> Projects
+              </button>
               <input
                 type="text"
                 value={designName}
@@ -1018,6 +1205,18 @@ const Editor = () => {
             </button>
             <button
               className="bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2"
+              onClick={saveDesign}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-600 border-t-transparent"></div>
+              ) : (
+                <span className="text-xl">💾</span>
+              )}
+              <span>{isSaving ? 'Saving...' : 'Save'}</span>
+            </button>
+            <button
+              className="bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2"
               onClick={() => setShowNewFileModal(true)}
             >
               <span className="text-xl">+</span>
@@ -1035,8 +1234,50 @@ const Editor = () => {
               Daruusad
             </button>
             <div className="flex items-center gap-3">
-              <span className="font-medium text-gray-700">Afrah</span>
-              <div className="w-10 h-10 bg-slate-800 rounded-full border-2 border-white shadow-md"></div>
+              <span className="font-medium text-gray-700">
+                {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User'}
+              </span>
+              <div className="relative">
+                <button
+                  className="flex items-center justify-center outline-none"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                >
+                  {currentUser?.photoURL ? (
+                    <img
+                      src={currentUser.photoURL}
+                      alt="Profile"
+                      className="w-10 h-10 rounded-full border-2 border-white shadow-md object-cover hover:shadow-lg transition-all"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 bg-purple-600 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg hover:shadow-lg transition-all">
+                      {(currentUser?.displayName?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()}
+                    </div>
+                  )}
+                </button>
+
+                {/* Profile Dropdown */}
+                {showProfileMenu && (
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                    <div className="px-4 py-2 border-b border-gray-100 mb-2">
+                      <p className="text-sm font-bold text-gray-800 truncate">
+                        {currentUser?.displayName || 'User'}
+                      </p>
+                      <p className="text-xs text-gray-500 truncate">
+                        {currentUser?.email}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setShowLogoutConfirm(true);
+                        setShowProfileMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                    >
+                      <FaSignOutAlt /> Sign Out
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1132,7 +1373,11 @@ const Editor = () => {
       />
 
       {/* Real-time Design Assistant */}
-      <DesignAssistant selectedItem={selectedItem} canvas={canvas} />
+      <DesignAssistant
+        selectedItem={selectedItem}
+        canvas={canvas}
+        projectType={projectType}
+      />
 
       {/* Image & Icon Search */}
       <ImageIconSearch
@@ -1231,7 +1476,15 @@ const Editor = () => {
         }} />
 
       {/* AI Teacher/Lecturer */}
-      <AIHelper />
+      <AIHelper
+        projectType={projectType}
+        setProjectType={setProjectType}
+        canvas={canvas}
+        selectedItem={selectedItem}
+        addText={addText}
+        addRect={addRect}
+        addEllipse={addEllipse}
+      />
       {/* New File Modal */}
       {showNewFileModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -1277,6 +1530,25 @@ const Editor = () => {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showNewFileConfirm}
+        onClose={() => setShowNewFileConfirm(false)}
+        onConfirm={executeCreateNewFile}
+        title="Create New File?"
+        message="Are you sure you want to create a new file? Any unsaved changes to your current design will be lost."
+        confirmText="Create New"
+        isDestructive={true}
+      />
+      <ConfirmDialog
+        isOpen={showLogoutConfirm}
+        onClose={() => setShowLogoutConfirm(false)}
+        onConfirm={handleLogout}
+        title="Sign Out?"
+        message="Are you sure you want to sign out?"
+        confirmText="Sign Out"
+        isDestructive={true}
+      />
     </div>
   );
 };
