@@ -15,8 +15,16 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: #F6F5FB;             /* Soft light background */
-  color: #3F3F46;                  /* Soft dark text */
+  background: #F6F5FB;
+  /* Soft light background */
+  color: #3F3F46;
+  /* Soft dark text */
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
 }
 
 /* Prevent Tailwind container from shrinking */
@@ -28,9 +36,12 @@ body {
    Color Variables (Soft Purple Theme)
    ────────────────────────────────────────────── */
 :root {
-  --primary: #6C2BD9;          /* Soft Purple */
-  --primary-light: #C084FC;    /* Light Purple */
-  --primary-bg: #F4EAFF;       /* Faint purple tint */
+  --primary: #6C2BD9;
+  /* Soft Purple */
+  --primary-light: #C084FC;
+  /* Light Purple */
+  --primary-bg: #F4EAFF;
+  /* Faint purple tint */
   --border: #E4E4E7;
   --gray-light: #F4F4F5;
   --text-dark: #3F3F46;
@@ -57,7 +68,7 @@ body {
   border-radius: 16px;
   border: 1px solid var(--border);
   padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
 }
 
 /* Inputs */
@@ -84,6 +95,13 @@ body {
 }
 
 @keyframes fade {
-  from { opacity: 0; transform: translateY(4px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

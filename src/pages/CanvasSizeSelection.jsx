@@ -13,35 +13,35 @@ const CanvasSizeSelection = () => {
   const presetSizes = [
     {
       id: "logo",
-      name: "Summad",
+      name: "Logo",
       width: 500,
       height: 500,
       icon: FaImage,
-      description: "Ku habboon summadaha shirkadaha",
+      description: "Great for brand marks and avatars",
     },
     {
       id: "poster",
-      name: "Boostaro",
+      name: "Poster",
       width: 800,
       height: 1200,
       icon: FaFile,
-      description: "Ku habboon xayaysiisyada iyo dhacdooyinka",
+      description: "Perfect for print posters and flyers",
     },
     {
       id: "social",
-      name: "Baraha Bulshada",
+      name: "Social Media Square",
       width: 1080,
       height: 1080,
       icon: FaShareAlt,
-      description: "Facebook, Instagram, Twitter",
+      description: "Optimized for Instagram, Facebook, and X",
     },
     {
       id: "banner",
-      name: "Calan Xayaysiis",
+      name: "Web Banner",
       width: 1200,
       height: 400,
       icon: MdViewWeek,
-      description: "Ku habboon bogagga internetka",
+      description: "Ideal for hero sections and site headers",
     },
   ];
 
@@ -59,12 +59,12 @@ const CanvasSizeSelection = () => {
     const height = parseInt(customHeight);
 
     if (!width || !height || width < 100 || height < 100) {
-      alert("Fadlan geli cabir sax ah (ugu yaraan 100px)");
+      alert("Please enter a valid size (minimum 100px).");
       return;
     }
 
     if (width > 5000 || height > 5000) {
-      alert("Cabirka waa aad u weyn (ugu badnaan 5000px)");
+      alert("Size is too large (maximum 5000px).");
       return;
     }
 
@@ -77,10 +77,10 @@ const CanvasSizeSelection = () => {
 
         {/* Title */}
         <h1 className="text-3xl font-bold text-center text-[#3F3F46] mb-3">
-          Dooro Cabbirka Naqshadda
+          Choose Your Canvas Size
         </h1>
         <p className="text-center text-gray-600 mb-12">
-          Door mid diyaar ah ama samee cabbir gaar ah
+          Pick a preset or create a custom dimension
         </p>
 
         {/* Preset Size Grid */}
@@ -124,10 +124,10 @@ const CanvasSizeSelection = () => {
 
               <div>
                 <h3 className="font-semibold text-xl text-[#3F3F46]">
-                  Cabbir Gaar Ah
+                  Custom Size
                 </h3>
                 <p className="text-sm text-gray-500">
-                  Samee cabbir aad u gaarka ah
+                  Define your own width and height
                 </p>
               </div>
             </div>
@@ -144,12 +144,12 @@ const CanvasSizeSelection = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
-                  Ballac (Width)
+                  Width (px)
                 </label>
                 <input
                   type="number"
                   className="input"
-                  placeholder="Tusaale: 800"
+                  placeholder="e.g., 800"
                   value={customWidth}
                   onChange={(e) => setCustomWidth(e.target.value)}
                 />
@@ -157,12 +157,12 @@ const CanvasSizeSelection = () => {
 
               <div>
                 <label className="text-sm text-gray-600 mb-1 block">
-                  Dherer (Height)
+                  Height (px)
                 </label>
                 <input
                   type="number"
                   className="input"
-                  placeholder="Tusaale: 1200"
+                  placeholder="e.g., 1200"
                   value={customHeight}
                   onChange={(e) => setCustomHeight(e.target.value)}
                 />
@@ -183,7 +183,7 @@ const CanvasSizeSelection = () => {
               onClick={handleCustomSize}
               className="btn-primary w-full py-3 rounded-xl text-white font-semibold"
             >
-              Bilow Naqshadeynta →
+              Start Designing →
             </button>
           </div>
         )}

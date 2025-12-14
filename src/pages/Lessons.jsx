@@ -25,7 +25,7 @@ const Lessons = () => {
                     </div>
                 </div>
                 <h1 className="text-5xl font-extrabold text-slate-800 mb-4 tracking-tight">
-                    Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">Dadaal Studio</span>
+                    Welcome to <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-500 to-blue-600">ViDo</span>
                 </h1>
                 <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed font-medium">
                     Master the art of digital design with our professional tools. Choose your skill level to begin your journey!
@@ -61,7 +61,7 @@ const Lessons = () => {
             </div>
 
             <div className="mt-12 text-slate-400 text-sm font-medium flex items-center gap-2">
-                Made with <FaHeart className="text-sky-400" /> by Dadaal Design Studio
+                Made with <FaHeart className="text-sky-400" /> by ViDo Design Studio
             </div>
         </div>
     );

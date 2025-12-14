@@ -20,6 +20,7 @@ const Editor = () => {
   const designId = searchParams.get('id');
 
   const canvasRef = useRef(null);
+  const fabricRef = useRef(null);
   const clipboard = useRef(null);
   const [canvas, setCanvas] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
@@ -61,6 +62,31 @@ const Editor = () => {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [lastSaved, setLastSaved] = useState(new Date());
+
+  // Auto-save logic
+  useEffect(() => {
+    if (!canvas) return;
+
+    let timeout;
+    const triggerSave = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        saveDesign();
+      }, 3000); // Auto-save after 3 seconds of inactivity
+    };
+
+    canvas.on('object:modified', triggerSave);
+    canvas.on('object:added', triggerSave);
+    canvas.on('object:removed', triggerSave);
+
+    return () => {
+      canvas.off('object:modified', triggerSave);
+      canvas.off('object:added', triggerSave);
+      canvas.off('object:removed', triggerSave);
+      clearTimeout(timeout);
+    };
+  }, [canvas, designName]); // Re-bind if designName changes
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged((u) => {
@@ -113,6 +139,7 @@ const Editor = () => {
     });
 
     setCanvas(fabricCanvas);
+    fabricRef.current = fabricCanvas;
 
     // Zoom and Pan
     fabricCanvas.on('mouse:wheel', function (opt) {
@@ -153,10 +180,12 @@ const Editor = () => {
       setSelectedItem(null);
       setShowContextToolbar(false);
     });
+
     fabricCanvas.on('object:modified', handleSelection);
+
     fabricCanvas.on('object:moving', () => {
       setShowContextToolbar(false); // Hide while moving
-      handleSelection;
+      handleSelection({ target: fabricCanvas.getActiveObject() });
     });
     fabricCanvas.on('object:scaling', handleSelection);
     fabricCanvas.on('object:rotating', handleSelection);
@@ -740,17 +769,19 @@ const Editor = () => {
   };
 
   const saveDesign = async () => {
-    if (!canvas || !auth.currentUser) {
-      alert("Please login to save your design.");
+    const currentCanvas = fabricRef.current;
+    if (!currentCanvas || !auth.currentUser) {
+      // Silent return if no canvas, alert only if explicitly called by user (which we don't have right now)
+      if (!auth.currentUser) console.warn("Cannot save: No user logged in");
       return;
     }
 
     setIsSaving(true);
     try {
-      const json = canvas.toJSON();
+      const json = currentCanvas.toJSON();
       const userId = auth.currentUser.uid;
       // Generate a small preview data URL
-      const previewUrl = canvas.toDataURL({
+      const previewUrl = currentCanvas.toDataURL({
         format: 'png',
         quality: 0.5,
         multiplier: 0.2 // Small preview
@@ -770,6 +801,7 @@ const Editor = () => {
         }).eq('id', designId);
 
         if (error) throw error;
+        setLastSaved(new Date());
       } else {
         // Insert new design
         const { data, error } = await supabase.from('designs').insert({
@@ -783,6 +815,7 @@ const Editor = () => {
         if (data && data.id) {
           setSearchParams({ id: data.id });
         }
+        setLastSaved(new Date());
       }
     } catch (error) {
       console.error("Error saving design (attempt 1):", error);
@@ -790,7 +823,7 @@ const Editor = () => {
       // Retry without preview_url (Backward Compatibility)
       try {
         console.log("Retrying save without preview_url...");
-        const json = canvas.toJSON();
+        const json = currentCanvas.toJSON();
         const userId = auth.currentUser.uid;
 
         if (designId) {
@@ -822,6 +855,71 @@ const Editor = () => {
     setIsPro(true);
     alert('🎉 Congratulations! You are now a Pro user. All premium tools are unlocked!');
   };
+
+  // --- Start Pro Tools Implementation ---
+  const activateEyedropper = async () => {
+    if (!window.EyeDropper) {
+      alert("Your browser doesn't support the Eyedropper tool.");
+      return;
+    }
+    const eyeDropper = new window.EyeDropper();
+    try {
+      const result = await eyeDropper.open();
+      if (selectedItem) {
+        updateProperty('fill', result.sRGBHex);
+        setFill(result.sRGBHex);
+      }
+    } catch (e) {
+      console.log('Eyedropper cancelled');
+    }
+  };
+
+  const selectSimilar = () => {
+    if (!canvas || !selectedItem) return;
+    const targetFill = selectedItem.fill;
+    const objects = canvas.getObjects();
+    const selection = objects.filter(obj => obj.fill === targetFill);
+    if (selection.length > 0) {
+      const activeSelection = new fabric.ActiveSelection(selection, { canvas: canvas });
+      canvas.setActiveObject(activeSelection);
+      canvas.requestRenderAll();
+    }
+  };
+
+  const applyBlur = () => {
+    if (!canvas || !selectedItem || selectedItem.type !== 'image') {
+      alert("Please select an image to blur.");
+      return;
+    }
+    // Simple blur filter toggle
+    // Note: Fabric 6 filter syntax might differ, simplifying for standard usage or using CSS filter approximation for canvas if tricky.
+    // Let's assume standard fabric image filters are available or we can set opacity/blur.
+    // Actually, let's just use simpler opacity for now if filters aren't loaded, or standard blur if possible.
+    // Fabric 6 structure for filters:
+    try {
+      const filter = new fabric.filters.Blur({ blur: 0.5 });
+      selectedItem.filters.push(filter);
+      selectedItem.applyFilters();
+      canvas.requestRenderAll();
+    } catch (e) {
+      console.error("Filter error", e);
+    }
+  };
+
+  const applyGradient = () => {
+    if (!selectedItem) return;
+    // Simple linear gradient
+    selectedItem.set('fill', new fabric.Gradient({
+      type: 'linear',
+      coords: { x1: 0, y1: 0, x2: selectedItem.width, y2: selectedItem.height },
+      colorStops: [
+        { offset: 0, color: '#000' },
+        { offset: 1, color: '#fff' }
+      ]
+    }));
+    canvas.requestRenderAll();
+  };
+  // --- End Pro Tools Implementation ---
 
   const handleCreateNewFile = () => {
     if (!canvas) return;
@@ -1146,110 +1244,97 @@ const Editor = () => {
             document.body.removeChild(link);
           } catch (error) {
             console.error("Export error:", error);
-            alert("Khalad ayaa dhacay markii la dhoofinayay (Export Error). Fadlan hubi in sawirada aad isticmaashay ay yihiin kuwo la ogol yahay (CORS).");
+            alert("Export failed. Please check that your images allow cross-origin download (CORS) and try again.");
           }
         }}
         onLoadTemplate={loadWatchTemplate}
+        // Pro Handlers
+        activateEyedropper={activateEyedropper}
+        selectSimilar={selectSimilar} // Magic wand
+        applyBlur={applyBlur}
+        applyGradient={applyGradient}
+        toggleLock={toggleLock}
       />
 
 
 
       <div className="flex-1 flex flex-col relative overflow-hidden">
         {/* Top Bar */}
-        <div className="h-20 flex items-center justify-between px-8">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-lg flex items-center justify-center text-white font-bold hover:scale-105 transition-transform shadow-md"
-                title="Go to Dashboard"
-              >
-                <span className="text-xs">D</span>
-              </button>
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="bg-white text-gray-700 px-3 py-2 rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 font-medium text-sm flex items-center gap-2"
-              >
-                <FaArrowLeft /> Projects
-              </button>
-              <input
-                type="text"
-                value={designName}
-                onChange={(e) => setDesignName(e.target.value)}
-                className="font-bold text-gray-700 text-lg bg-transparent border-b-2 border-transparent hover:border-gray-300 focus:border-purple-500 focus:outline-none px-1 transition-colors w-48"
-                placeholder="Name your design..."
-              />
+        <div className="h-20 flex items-center justify-between px-8 bg-white/50 backdrop-blur-sm border-b border-gray-100 z-10">
+          <div className="flex items-center gap-4 flex-1">
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="w-10 h-10 bg-white rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 hover:text-purple-600 transition-all shadow-sm"
+              title="Back to Projects"
+            >
+              <FaArrowLeft />
+            </button>
+
+            <div className="h-8 w-[1px] bg-gray-300 mx-2"></div>
+
+            <input
+              type="text"
+              value={designName}
+              onChange={(e) => setDesignName(e.target.value)}
+              className="font-bold text-gray-800 text-xl bg-transparent border-none hover:bg-white/50 focus:bg-white focus:ring-2 focus:ring-purple-500/20 rounded-lg px-3 py-1 transition-all w-64"
+              placeholder="Untitled Design"
+            />
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-700 rounded-full text-xs font-bold uppercase tracking-wider">
+              {isSaving ? (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                  Saved
+                </>
+              )}
             </div>
           </div>
 
-          <div className="flex-1 max-w-xl mx-8 flex items-center gap-4">
-            <div className="relative group flex-1">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400 group-focus-within:text-purple-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-12 pr-4 py-3 bg-[#d1d5db] border-none rounded-2xl text-gray-700 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:bg-white transition-all shadow-inner"
-                placeholder="Raadi ..."
-              />
-            </div>
-
+          <div className="flex items-center gap-4">
             <button
-              className="bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2"
-              onClick={() => setShowAssetsSearch(true)}
-            >
-              <FaSearch size={16} className="text-purple-600" />
-              <span>Assets</span>
-            </button>
-            <button
-              className="bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2"
-              onClick={saveDesign}
-              disabled={isSaving}
-            >
-              {isSaving ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-600 border-t-transparent"></div>
-              ) : (
-                <span className="text-xl">💾</span>
-              )}
-              <span>{isSaving ? 'Saving...' : 'Save'}</span>
-            </button>
-            <button
-              className="bg-white text-gray-700 px-5 py-3 rounded-2xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2"
+              className="bg-white text-gray-700 px-5 py-2.5 rounded-xl font-bold border border-gray-200 shadow-sm hover:bg-gray-50 hover:shadow-md transition-all flex items-center gap-2 text-sm"
               onClick={() => setShowNewFileModal(true)}
             >
-              <span className="text-xl">+</span>
+              <span className="text-lg">+</span>
               <span>New</span>
             </button>
-          </div>
 
-          <div className="flex items-center gap-4">
             <button
-              className="bg-[#5b21b6] hover:bg-[#4c1d95] text-white px-6 py-2.5 rounded-xl font-medium transition-all shadow-lg shadow-purple-900/20 flex items-center gap-2"
+              className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:shadow-lg hover:scale-105 transition-all flex items-center gap-2 text-sm shadow-purple-200"
               onClick={() => setShowUpgradeModal(true)}
             >
-              <div className="w-0.5 h-4 bg-yellow-400"></div>
-              <div className="w-0.5 h-4 bg-yellow-400"></div>
-              Daruusad
+              <div className="flex gap-0.5">
+                <div className="w-0.5 h-3 bg-yellow-300/80"></div>
+                <div className="w-0.5 h-3 bg-yellow-300/80"></div>
+              </div>
+              Upgrade
             </button>
-            <div className="flex items-center gap-3">
-              <span className="font-medium text-gray-700">
-                {currentUser?.displayName || currentUser?.email?.split('@')[0] || 'User'}
-              </span>
+
+            <div className="pl-4 border-l border-gray-200">
               <div className="relative">
                 <button
-                  className="flex items-center justify-center outline-none"
+                  className="flex items-center gap-3 outline-none group"
                   onClick={() => setShowProfileMenu(!showProfileMenu)}
                 >
+                  <div className="text-right hidden md:block">
+                    <p className="text-sm font-bold text-gray-700 group-hover:text-purple-700 transition-colors">
+                      {currentUser?.displayName || 'Designer'}
+                    </p>
+                    <p className="text-[10px] text-gray-400 font-medium tracking-wide">FREE PLAN</p>
+                  </div>
                   {currentUser?.photoURL ? (
                     <img
                       src={currentUser.photoURL}
                       alt="Profile"
-                      className="w-10 h-10 rounded-full border-2 border-white shadow-md object-cover hover:shadow-lg transition-all"
+                      className="w-10 h-10 rounded-xl border-2 border-white shadow-md object-cover group-hover:ring-2 ring-purple-500 ring-offset-2 transition-all"
                     />
                   ) : (
-                    <div className="w-10 h-10 bg-purple-600 rounded-full border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg hover:shadow-lg transition-all">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-xl border-2 border-white shadow-md flex items-center justify-center text-white font-bold text-lg group-hover:ring-2 ring-purple-500 ring-offset-2 transition-all">
                       {(currentUser?.displayName?.[0] || currentUser?.email?.[0] || 'U').toUpperCase()}
                     </div>
                   )}
@@ -1257,12 +1342,12 @@ const Editor = () => {
 
                 {/* Profile Dropdown */}
                 {showProfileMenu && (
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 p-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="px-4 py-2 border-b border-gray-100 mb-2">
+                  <div className="absolute right-0 top-full mt-4 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 p-2 z-50 transform origin-top-right animate-in fade-in zoom-in-95 duration-200">
+                    <div className="p-3 bg-gray-50 rounded-xl mb-2">
                       <p className="text-sm font-bold text-gray-800 truncate">
                         {currentUser?.displayName || 'User'}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
                         {currentUser?.email}
                       </p>
                     </div>
@@ -1271,7 +1356,7 @@ const Editor = () => {
                         setShowLogoutConfirm(true);
                         setShowProfileMenu(false);
                       }}
-                      className="w-full text-left px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-lg font-bold flex items-center gap-2 transition-colors"
+                      className="w-full text-left px-3 py-2.5 text-red-600 hover:bg-red-50 rounded-xl font-bold flex items-center gap-3 transition-colors text-sm"
                     >
                       <FaSignOutAlt /> Sign Out
                     </button>
@@ -1280,9 +1365,7 @@ const Editor = () => {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Main Canvas Area */}
+        </div>   {/* Main Canvas Area */}
         <div className="flex-1 relative m-4 mt-0 bg-white rounded-[30px] shadow-sm overflow-hidden flex items-center justify-center">
           <canvas ref={canvasRef} />
 

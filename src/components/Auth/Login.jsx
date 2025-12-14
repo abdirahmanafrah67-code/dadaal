@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { auth } from '../../firebase/config';
 import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaTwitter, FaInstagram, FaGithub } from 'react-icons/fa';
+import { FaGoogle } from 'react-icons/fa';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 
 const Login = ({ onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [agreed, setAgreed] = useState(false); // New state for terms
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,10 +17,16 @@ const Login = ({ onSwitchToRegister }) => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!agreed) {
+      setError('Please agree to the terms & conditions.');
+      return;
+    }
+
     setLoading(true);
 
     if (!email || !password) {
-      setError('Fadlan buuxi dhammaan goobaha!');
+      setError('Please fill in all fields.');
       setLoading(false);
       return;
     }
@@ -29,14 +36,14 @@ const Login = ({ onSwitchToRegister }) => {
       navigate('/editor');
     } catch (error) {
       console.error('Login error:', error);
-      let errorMessage = 'Khalad ayaa dhacay! Hubi email-ka iyo password-ka.';
+      let errorMessage = 'Something went wrong. Please check your email and password.';
 
       if (error.code === 'auth/user-not-found') {
-        errorMessage = 'Akoon lama helin. Fadlan samee mid cusub.';
+        errorMessage = 'Account not found. Please create one.';
       } else if (error.code === 'auth/wrong-password') {
-        errorMessage = 'Password-ku waa qaldan yahay!';
+        errorMessage = 'The password you entered is incorrect.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email-ku waa qaldan yahay!';
+        errorMessage = 'Please enter a valid email address.';
       }
 
       setError(errorMessage);
@@ -55,17 +62,16 @@ const Login = ({ onSwitchToRegister }) => {
       navigate('/editor');
     } catch (error) {
       console.error('Google sign-in error:', error);
-      let errorMessage = 'Khalad ayaa dhacay markii la galinaayey Google!';
+      let errorMessage = 'Google sign-in failed. Please try again.';
 
       if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Waa la xiray daaqadda Google-ka.';
+        errorMessage = 'The Google window was closed before completing sign-in.';
       } else if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = 'Domain-kan (vercel.app) lama oggola. Fadlan ku dar Firebase Console -> Authentication -> Settings -> Authorized Domains.';
+        errorMessage = 'This domain is not authorized in Firebase. Add it under Authentication settings.';
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Codsiga waa la joojiyay.';
+        errorMessage = 'The sign-in request was cancelled.';
       } else if (error.message) {
-        // Fallback to showing technical error if we can't map it, helpful for debugging
-        errorMessage = `Khalad: ${error.message}`;
+        errorMessage = `Error: ${error.message}`;
       }
 
       setError(errorMessage);
@@ -75,134 +81,129 @@ const Login = ({ onSwitchToRegister }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Left Side - Image with Gradient Overlay */}
-      <div className="w-full lg:w-1/2 relative bg-gradient-to-br from-purple-600 via-blue-500 to-indigo-600 flex">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-8 lg:p-12 w-full">
-          <div className="mb-6 lg:mb-8">
-            <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/10 backdrop-blur-lg rounded-2xl flex items-center justify-center">
-              <span className="text-3xl lg:text-4xl">🎨</span>
-            </div>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white font-sans">
+      {/* Left Side - Login Form */}
+      <div className="w-full lg:w-1/2 flex flex-col p-8 lg:p-16 justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-10">
+          {/* New Full Logo */}
+          <img src="/vido-logo.png" alt="ViDo Logo" className="w-64 h-auto object-contain" />
+        </div>
+
+        <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-[#0F172A] mb-2 flex items-center gap-2">
+              Welcome back <span className="text-3xl">👋</span>
+            </h1>
+            <p className="text-gray-500">We are happy to have you back</p>
           </div>
-          <h1 className="text-3xl lg:text-5xl font-bold mb-3 lg:mb-4 text-center">Somali AI Design Studio</h1>
-          <p className="text-base lg:text-xl text-white/90 text-center max-w-md">
-            Baro qaabka loo sameeyo naqshado xirfad leh, adoo isticmaalaya AI si uu kuu caawiyo
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-5">
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Email Address*
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white"
+              />
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Terms Checkbox */}
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                id="terms"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                className="w-5 h-5 rounded border-gray-300 text-[#0F172A] focus:ring-[#0F172A] cursor-pointer"
+              />
+              <label htmlFor="terms" className="text-sm font-medium text-[#0F172A] cursor-pointer select-none">
+                I agree to terms & conditions
+              </label>
+            </div>
+
+            {/* Login Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-[#0F172A] text-white font-medium rounded-xl hover:bg-[#1e293b] transform hover:-translate-y-0.5 transition disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-slate-200"
+            >
+              {loading ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center my-8">
+            <div className="flex-1 border-t border-gray-200"></div>
+            <span className="px-4 text-sm text-gray-400 font-medium">Or</span>
+            <div className="flex-1 border-t border-gray-200"></div>
+          </div>
+
+          {/* Google Sign In */}
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full py-3.5 bg-[#0F172A] text-white font-medium rounded-xl hover:bg-[#1e293b] transition flex items-center justify-center gap-3 disabled:opacity-70 shadow-lg shadow-slate-200"
+          >
+            <FaGoogle className="text-white" size={18} />
+            Login with Google
+          </button>
+
+          {/* Switch to Register */}
+          <p className="text-center mt-8 text-sm text-gray-500">
+            Don’t have an account?{' '}
+            <button
+              onClick={onSwitchToRegister}
+              className="text-[#0F172A] font-bold hover:underline"
+            >
+              Register
+            </button>
           </p>
         </div>
       </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full lg:flex-1 flex items-center justify-center p-6 lg:p-8 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Login Card */}
-          <div className="bg-white rounded-3xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <div className="inline-block w-12 h-12 bg-gradient-to-br from-purple-600 to-blue-500 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-2xl">👋</span>
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Soo dhawoow dib!</h2>
-              <p className="text-gray-600">Gali akoonkaaga si aad u sii waddo</p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-5">
-              {/* Email Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Geli email-kaaga"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                />
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Geli password-kaaga"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Login Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white font-semibold rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Gali...' : 'Gali'}
-              </button>
-            </form>
-
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 border-t border-gray-300"></div>
-              <span className="px-4 text-sm text-gray-500">Ama</span>
-              <div className="flex-1 border-t border-gray-300"></div>
-            </div>
-
-            {/* Google Sign In */}
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full py-3 border-2 border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              <FaGoogle className="text-red-500" size={20} />
-              Gali Google
-            </button>
-
-            {/* Switch to Register */}
-            <p className="text-center mt-6 text-sm text-gray-600">
-              Ma lihid akoon?{' '}
-              <button
-                onClick={onSwitchToRegister}
-                className="text-purple-600 font-semibold hover:text-purple-700"
-              >
-                Samee mid cusub
-              </button>
-            </p>
-
-            {/* Social Links */}
-            <div className="flex justify-center gap-4 mt-8">
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaFacebook className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaTwitter className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaInstagram className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaGithub className="text-gray-600" />
-              </a>
-            </div>
-          </div>
+      {/* Right Side - Image/Illustration */}
+      <div className="w-full lg:w-1/2 p-4 lg:p-6 hidden lg:block h-screen sticky top-0">
+        <div className="w-full h-full rounded-[40px] overflow-hidden relative">
+          <img
+            src="/auth-illustration.png"
+            alt="Design Innovation"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     </div>

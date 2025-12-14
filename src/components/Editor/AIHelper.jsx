@@ -133,7 +133,7 @@ You: "I can add rectangles, circles, or custom shapes. What suits your ${project
                         "Authorization": `Bearer ${apiKey}`,
                         "Content-Type": "application/json",
                         "HTTP-Referer": window.location.href,
-                        "X-Title": "Dadaal Studio",
+                        "X-Title": "ViDo",
                     },
                     body: JSON.stringify({
                         "model": "google/gemini-2.0-flash-001",
@@ -314,12 +314,9 @@ You: "I can add rectangles, circles, or custom shapes. What suits your ${project
             {!isOpen && (
                 <button
                     onClick={() => setIsOpen(true)}
-                    className="relative w-16 h-16 bg-gradient-to-br from-[#013232] to-[#025555] rounded-full shadow-2xl shadow-[#013232]/50 flex items-center justify-center text-white hover:scale-110 transition-all duration-300 group border-4 border-white animate-pulse hover:animate-none"
+                    className="relative w-16 h-16 rounded-full shadow-2xl shadow-gray-400/50 flex items-center justify-center overflow-hidden hover:scale-110 transition-all duration-300 group border-4 border-white"
                 >
-                    <FaRobot size={28} className="group-hover:rotate-12 transition-transform duration-300" />
-                    <div className="absolute -top-1 -right-1 w-6 h-6 bg-yellow-400 rounded-full border-2 border-white flex items-center justify-center">
-                        <FaMagic size={12} className="text-[#013232]" />
-                    </div>
+                    <img src="/vido-logo.png" alt="ViDo AI" className="w-full h-full object-cover" />
                 </button>
             )}
 

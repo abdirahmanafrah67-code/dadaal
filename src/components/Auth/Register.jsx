@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { auth } from '../../firebase/config';
 import { createUserWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { FaGoogle, FaFacebook, FaTwitter, FaInstagram, FaGithub } from 'react-icons/fa';
+import { FaGoogle } from 'react-icons/fa';
 import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 
 const Register = ({ onSwitchToLogin }) => {
@@ -18,39 +18,37 @@ const Register = ({ onSwitchToLogin }) => {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (!fullName || !email || !password || !confirmPassword) {
-      setError('Fadlan buuxi dhammaan goobaha!');
-      setLoading(false);
+      setError('Please complete all fields.');
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Password-ku ma is le\'eka!');
-      setLoading(false);
+      setError('Passwords do not match.');
       return;
     }
 
     if (password.length < 6) {
-      setError('Password-ku waa inuu noqdaa ugu yaraan 6 xaraf!');
-      setLoading(false);
+      setError('Password must be at least 6 characters.');
       return;
     }
+
+    setLoading(true);
 
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       navigate('/editor');
     } catch (error) {
       console.error('Registration error:', error);
-      let errorMessage = 'Khalad ayaa dhacay markii la sameynayay akoonka!';
+      let errorMessage = 'Something went wrong while creating your account.';
 
       if (error.code === 'auth/email-already-in-use') {
-        errorMessage = 'Email-kan waa la isticmaalay horeba!';
+        errorMessage = 'This email is already in use.';
       } else if (error.code === 'auth/invalid-email') {
-        errorMessage = 'Email-ku waa qaldan yahay!';
+        errorMessage = 'Please enter a valid email address.';
       } else if (error.code === 'auth/weak-password') {
-        errorMessage = 'Password-ku aad buu u jilicsan yahay!';
+        errorMessage = 'Password is too weak.';
       }
 
       setError(errorMessage);
@@ -69,16 +67,16 @@ const Register = ({ onSwitchToLogin }) => {
       navigate('/editor');
     } catch (error) {
       console.error('Google sign-in error:', error);
-      let errorMessage = 'Khalad ayaa dhacay markii la galinaayey Google!';
+      let errorMessage = 'Google sign-in failed. Please try again.';
 
       if (error.code === 'auth/popup-closed-by-user') {
-        errorMessage = 'Waa la xiray daaqadda Google-ka.';
+        errorMessage = 'The Google window was closed before finishing.';
       } else if (error.code === 'auth/unauthorized-domain') {
-        errorMessage = 'Domain-kan (vercel.app) lama oggola. Fadlan ku dar Firebase Console -> Authentication -> Settings -> Authorized Domains.';
+        errorMessage = 'This domain is not authorized in Firebase. Add it under Authentication settings.';
       } else if (error.code === 'auth/cancelled-popup-request') {
-        errorMessage = 'Codsiga waa la joojiyay.';
+        errorMessage = 'The sign-in request was cancelled.';
       } else if (error.message) {
-        errorMessage = `Khalad: ${error.message}`;
+        errorMessage = `Error: ${error.message}`;
       }
 
       setError(errorMessage);
@@ -88,162 +86,143 @@ const Register = ({ onSwitchToLogin }) => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row">
-      {/* Left Side - Image with Gradient Overlay */}
-      <div className="w-full lg:w-1/2 relative bg-gradient-to-br from-indigo-600 via-purple-500 to-pink-600 flex">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="relative z-10 flex flex-col justify-center items-center text-white p-8 lg:p-12 w-full">
-          <div className="mb-6 lg:mb-8">
-            <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/10 backdrop-blur-lg rounded-2xl flex items-center justify-center">
-              <span className="text-3xl lg:text-4xl">🎨</span>
-            </div>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-white font-sans">
+      {/* Left Side - Register Form */}
+      <div className="w-full lg:w-1/2 flex flex-col p-8 lg:p-16 justify-between">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-10">
+          {/* New Full Logo */}
+          <img src="/vido-logo.png" alt="ViDo Logo" className="w-56 h-auto object-contain" />
+        </div>
+
+        <div className="max-w-md w-full mx-auto flex-1 flex flex-col justify-center">
+          <div className="mb-6">
+            <h1 className="text-3xl font-bold text-[#0F172A] mb-2 flex items-center gap-2">
+              Get Started <span className="text-3xl">🚀</span>
+            </h1>
+            <p className="text-gray-500">Create your account to start designing</p>
           </div>
-          <h1 className="text-3xl lg:text-5xl font-bold mb-3 lg:mb-4 text-center">Bilow Safarkaaga!</h1>
-          <p className="text-base lg:text-xl text-white/90 text-center max-w-md">
-            Ku biir kumanyaalka ardayda Soomaaliyeed ee baraya naqshadeynta xirfad leh
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          <form onSubmit={handleRegister} className="space-y-4">
+            {/* Full Name Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Full Name*
+              </label>
+              <input
+                type="text"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="Enter your full name"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white"
+              />
+            </div>
+
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Email Address*
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white"
+              />
+            </div>
+
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Password*
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Create a password"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Confirm Password Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-2">
+                Confirm Password*
+              </label>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-gray-800 placeholder-gray-400 focus:ring-2 focus:ring-[#0F172A] focus:border-transparent outline-none transition bg-white"
+              />
+            </div>
+
+            {/* Register Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3.5 bg-[#0F172A] text-white font-medium rounded-xl hover:bg-[#1e293b] transform hover:-translate-y-0.5 transition disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-slate-200 mt-2"
+            >
+              {loading ? 'Creating...' : 'Register'}
+            </button>
+          </form>
+
+          {/* Divider */}
+          <div className="flex items-center my-6">
+            <div className="flex-1 border-t border-gray-200"></div>
+            <span className="px-4 text-sm text-gray-400 font-medium">Or</span>
+            <div className="flex-1 border-t border-gray-200"></div>
+          </div>
+
+          {/* Google Sign In */}
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full py-3.5 bg-[#0F172A] text-white font-medium rounded-xl hover:bg-[#1e293b] transition flex items-center justify-center gap-3 disabled:opacity-70 shadow-lg shadow-slate-200"
+          >
+            <FaGoogle className="text-white" size={18} />
+            Sign up with Google
+          </button>
+
+          {/* Switch to Login */}
+          <p className="text-center mt-6 text-sm text-gray-500">
+            Already have an account?{' '}
+            <button
+              onClick={onSwitchToLogin}
+              className="text-[#0F172A] font-bold hover:underline"
+            >
+              Login
+            </button>
           </p>
         </div>
       </div>
 
-      {/* Right Side - Register Form */}
-      <div className="w-full lg:flex-1 flex items-center justify-center p-6 lg:p-8 bg-gray-50">
-        <div className="w-full max-w-md">
-          {/* Register Card */}
-          <div className="bg-white rounded-3xl shadow-xl p-8">
-            <div className="text-center mb-8">
-              <div className="inline-block w-12 h-12 bg-gradient-to-br from-indigo-600 to-purple-500 rounded-xl flex items-center justify-center mb-4">
-                <span className="text-2xl">✨</span>
-              </div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-2">Samee Akoon</h2>
-              <p className="text-gray-600">Bilow barashada  maanta</p>
-            </div>
-
-            {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleRegister} className="space-y-4">
-              {/* Full Name Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Magacaaga Buuxa
-                </label>
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Geli magacaaga buuxa"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                />
-              </div>
-
-              {/* Email Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Geli email-kaaga"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                />
-              </div>
-
-              {/* Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Password
-                </label>
-                <div className="relative">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Samee password adag"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition pr-12"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                  >
-                    {showPassword ? <AiOutlineEyeInvisible size={20} /> : <AiOutlineEye size={20} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Xaqiiji Password
-                </label>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Ku celi password-ka"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent outline-none transition"
-                />
-              </div>
-
-              {/* Register Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-500 text-white font-semibold rounded-xl hover:shadow-lg transform hover:-translate-y-0.5 transition disabled:opacity-50 disabled:cursor-not-allowed mt-6"
-              >
-                {loading ? 'Samee...' : 'Samee Akoon'}
-              </button>
-            </form>
-
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className="flex-1 border-t border-gray-300"></div>
-              <span className="px-4 text-sm text-gray-500">Ama</span>
-              <div className="flex-1 border-t border-gray-300"></div>
-            </div>
-
-            {/* Google Sign In */}
-            <button
-              onClick={handleGoogleSignIn}
-              disabled={loading}
-              className="w-full py-3 border-2 border-gray-300 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition flex items-center justify-center gap-3 disabled:opacity-50"
-            >
-              <FaGoogle className="text-red-500" size={20} />
-              Samee akoon Google
-            </button>
-
-            {/* Switch to Login */}
-            <p className="text-center mt-6 text-sm text-gray-600">
-              Horeba akoon ma leedahay?{' '}
-              <button
-                onClick={onSwitchToLogin}
-                className="text-purple-600 font-semibold hover:text-purple-700"
-              >
-                Gali
-              </button>
-            </p>
-
-            {/* Social Links */}
-            <div className="flex justify-center gap-4 mt-8">
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaFacebook className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaTwitter className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaInstagram className="text-gray-600" />
-              </a>
-              <a href="#" className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center hover:bg-gray-200 transition">
-                <FaGithub className="text-gray-600" />
-              </a>
-            </div>
-          </div>
+      {/* Right Side - Image/Illustration (Matched to Login) */}
+      <div className="w-full lg:w-1/2 p-4 lg:p-6 hidden lg:block h-screen sticky top-0">
+        <div className="w-full h-full rounded-[40px] overflow-hidden relative">
+          <img
+            src="/auth-illustration.png"
+            alt="Design Innovation"
+            className="w-full h-full object-cover"
+          />
         </div>
       </div>
     </div>
